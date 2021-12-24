@@ -26,7 +26,10 @@
   const start_coords = [100, base_line_y];
   const lineGenerator = d3.line().curve(d3.curveBasis);
   const xScale = d3.scaleLinear().domain([0, 90]).range([100, 800]);
-  const yScale = d3.scaleLinear().domain([0, 1]).range([base_line_y - 50, 50]);
+  const yScale = d3
+    .scaleLinear()
+    .domain([0, 1])
+    .range([base_line_y - 50, 50]);
 
   const randoms = {};
 
@@ -86,7 +89,7 @@
         ],
         [
           circle,
-          { transform: [`translateY(-${relative_y}px)`, "translateY(0)"] },
+          { y: [-relative_y, 0] },
           {
             duration: (0.5 * duration_f) / 2,
             at: `+${(0.3 * duration_f) / 2}`,
@@ -112,9 +115,23 @@
 
 <main class={state.theme === "light" ? "light" : "dark"}>
   <button on:click={animation.pause()}>Pause</button>
-  <button on:click={() => { animation.playbackRate = 1; animation.play()} }>Play</button>
-  <button on:click={() => animation.playbackRate = -10}>Rewind</button>
-  <button on:click={() => { animation.playbackRate = 1; animation.cancel()} }>Reset</button>
+  <button
+    on:click={() => {
+      animation.playbackRate = 1;
+      animation.play();
+    }}
+  >
+    Play
+  </button>
+  <button on:click={() => (animation.playbackRate = -10)}>Rewind</button>
+  <button
+    on:click={() => {
+      animation.playbackRate = 1;
+      animation.cancel();
+    }}
+  >
+    Reset
+  </button>
 
   <svg width="100%" height="100%">
     {#each completed_data as person, i (i)}
