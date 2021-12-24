@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as d3 from "d3";
+  import { timeline } from "motion";
   import { draw } from "svelte/transition";
   import * as easingFns from "svelte/easing";
   import type { Dataset, DataRow, TemplateState } from "../template";
@@ -15,6 +16,31 @@
       life_expectancy: Math.random() * 25 + 60,
     })) || [];
 
+  setTimeout(() => {
+    let circles = document.querySelectorAll("circle");
+
+    for (let [i, circle] of circles.entries()) {
+      const path = circle.parentNode.querySelector("path");
+      const person = data_with_paths[i];
+      const y = findYOnPathFromX(path, xScale(person.age_at_death));
+      const relative_y = base_line_y - y;
+      const relative_delay = getDelay(i);
+      const duration_until_point =
+        getDuration(i) *
+        (parseInt(person.age_at_death) / person.life_expectancy) - 1000;
+
+      const sequence = [
+        [circle, { opacity: 1}, { duration: 0.1}],
+        [circle, { transform: [`translateY(-${relative_y}px)`, "translateY(0)"] }, { at: "+0"}]
+      ]
+
+      timeline(sequence, {
+        duration: 1,
+        delay: (relative_delay + duration_until_point) / 1000,
+      });
+    }
+  }, 1000);
+
   const oranges = [
     "rgb(136,51,6)",
     "rgb(185,132,20)",
@@ -28,7 +54,7 @@
   const delay = 400;
 
   function getDuration(i) {
-    return i < durations.length ? durations[i] : 400;
+    return i < durations.length ? durations[i] : 200;
   }
 
   function getDelay(i) {
@@ -39,22 +65,8 @@
     if (i < durations.length) {
       return duration_so_far + delay;
     }
-    return duration_so_far + i * delay;
+    return duration_so_far + (i/20) * delay;
   }
-
-  let dummy_data = [
-    {
-      id: "jarule",
-      age_at_death: 30,
-      life_expectancy: 90,
-      visible: false,
-      path: undefined,
-    },
-    { id: "jam", age_at_death: 40, life_expectancy: 100, path: undefined },
-    { id: "jaz", age_at_death: 30, life_expectancy: 98, path: undefined },
-    { id: "jazmin", age_at_death: 60, life_expectancy: 75, path: undefined },
-    { id: "james", age_at_death: 74, life_expectancy: 78, path: undefined },
-  ];
 
   const lineGenerator = d3.line().curve(d3.curveBasis);
   const xScale = d3.scaleLinear().domain([0, 100]).range([100, 600]);
@@ -80,9 +92,9 @@
   }
 
   const animateDots = (node, { person, i }) => {
-    const path = node.parentNode.querySelector('path')
-    // const y = findYOnPathFromX(path, xScale(person.age_at_death));
-    const y = 20;
+    const path = node.parentNode.querySelector("path");
+    const y = findYOnPathFromX(path, xScale(person.age_at_death));
+    // const y = 20;
     const relative_y = base_line_y - y;
     const relative_delay = getDelay(i);
     const duration_until_point =
@@ -155,11 +167,9 @@
           cx={xScale(person.age_at_death)}
           cy={base_line_y}
           fill={oranges[(i + 1) % 5]}
-          in:animateDots={{
-            person,
-            i,
-          }}
+          style="opacity: 0"
         />
+        <!-- bind:this={circles[i]} -->
       </g>
     {/each}
     <line
