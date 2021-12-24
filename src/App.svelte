@@ -1,45 +1,17 @@
 <script lang="ts">
   import * as d3 from "d3";
   import { timeline } from "motion";
-  import { draw } from "svelte/transition";
-  import * as easingFns from "svelte/easing";
-  import type { Dataset, DataRow, TemplateState } from "../template";
+  import { onMount } from "svelte";
   import { findYOnPathFromX } from "./utils";
+  import type { Dataset, DataRow, TemplateState } from "../template";
 
   export let state: TemplateState;
   export let data: Dataset<DataRow>;
 
-  $: data_with_paths =
-    data.map((d) => ({
-      ...d,
-      path: undefined,
-      life_expectancy: Math.random() * 25 + 60,
-    })) || [];
-
-  setTimeout(() => {
-    let circles = document.querySelectorAll("circle");
-
-    for (let [i, circle] of circles.entries()) {
-      const path = circle.parentNode.querySelector("path");
-      const person = data_with_paths[i];
-      const y = findYOnPathFromX(path, xScale(person.age_at_death));
-      const relative_y = base_line_y - y;
-      const relative_delay = getDelay(i);
-      const duration_until_point =
-        getDuration(i) *
-        (parseInt(person.age_at_death) / person.life_expectancy) - 1000;
-
-      const sequence = [
-        [circle, { opacity: 1}, { duration: 0.1}],
-        [circle, { transform: [`translateY(-${relative_y}px)`, "translateY(0)"] }, { at: "+0"}]
-      ]
-
-      timeline(sequence, {
-        duration: 1,
-        delay: (relative_delay + duration_until_point) / 1000,
-      });
-    }
-  }, 1000);
+  $: completed_data = data.map((d) => ({
+    ...d,
+    life_expectancy: Math.random() * 45 + 45,
+  }));
 
   const oranges = [
     "rgb(136,51,6)",
@@ -48,38 +20,20 @@
     "rgb(229,94,5)",
     "rgb(153,103,27)",
   ];
-  const base_line_y = 250;
+  const base_line_y = 300;
+
+  // Make line paths
   const start_coords = [100, base_line_y];
-  const durations = [4000, 2000, 1500, 1000, 1000];
-  const delay = 400;
-
-  function getDuration(i) {
-    return i < durations.length ? durations[i] : 200;
-  }
-
-  function getDelay(i) {
-    if (i == 0) return 0;
-    const duration_so_far = durations
-      .slice(0, i)
-      .reduce((acc, cur) => acc + cur);
-    if (i < durations.length) {
-      return duration_so_far + delay;
-    }
-    return duration_so_far + (i/20) * delay;
-  }
-
   const lineGenerator = d3.line().curve(d3.curveBasis);
-  const xScale = d3.scaleLinear().domain([0, 100]).range([100, 600]);
-  const yScale = d3.scaleLinear().domain([0, 1]).range([200, 100]);
+  const xScale = d3.scaleLinear().domain([0, 90]).range([100, 800]);
+  const yScale = d3.scaleLinear().domain([0, 1]).range([base_line_y - 50, 50]);
 
   const randoms = {};
 
   function makeLivedLine(person, i) {
-    const random = randoms[i] ? randoms[i] : Math.random();
-    randoms[i] = random;
-
+    randoms[i] = randoms[i] ? randoms[i] : Math.random();
     const end_x = xScale(person.life_expectancy);
-    const mid_y = yScale(random);
+    const mid_y = yScale(randoms[i]);
     const mid_one_x = xScale(person.life_expectancy / 4);
     const mid_two_x = xScale((person.life_expectancy / 4) * 3);
 
@@ -91,77 +45,103 @@
     ]);
   }
 
-  const animateDots = (node, { person, i }) => {
-    const path = node.parentNode.querySelector("path");
-    const y = findYOnPathFromX(path, xScale(person.age_at_death));
-    // const y = 20;
-    const relative_y = base_line_y - y;
-    const relative_delay = getDelay(i);
-    const duration_until_point =
-      getDuration(i) * (person.age_at_death / person.life_expectancy);
+  // Animate lines
+  const duration_overides = { 0: 4, 1: 2.5, 2: 2, 3: 2, 4: 2 };
 
-    return {
-      delay: relative_delay + duration_until_point,
-      duration: 1000,
-      css: (t) => `
-        transform: translateY(${t * relative_y - relative_y}px);
-        opacity: ${t === 0 ? 0 : 1};
-      `,
-      easing: easingFns.quintIn,
-    };
-  };
+  onMount(() => {
+    let lives = document.querySelectorAll(".life");
 
-  function getWhiteLineDelay(person, i) {
-    const delay = getDelay(i);
-    if (i === 0) return delay + 500;
-    return delay;
-  }
+    let sequence = [];
+
+    for (let [i, life] of lives.entries()) {
+      const circle = life.querySelector("circle");
+      const orange_clip_rect = life.querySelector(".orange-clip rect");
+      const black_clip_rect = life.querySelector(".black-clip rect");
+      const path = circle.parentNode.querySelector("path");
+
+      const person = completed_data[i];
+      const y = findYOnPathFromX(path, xScale(person.age_at_death));
+      const relative_y = base_line_y - y;
+
+      const duration_overide = duration_overides[i];
+      const duration_f = duration_overide || 0.1;
+      const life_percent = person.age_at_death / person.life_expectancy;
+
+      sequence.push(
+        // Animate the orange line
+        [
+          orange_clip_rect,
+          { width: xScale(person.age_at_death) + "px" },
+          {
+            at: duration_overide ? "+0" : "-0.01",
+            duration: 1 * duration_f * life_percent,
+          },
+        ],
+        // Animate the circle
+        [
+          circle,
+          { opacity: 0.7 },
+          { at: `-${0.1}`, duration: (0.5 * duration_f) / 2 },
+        ],
+        [
+          circle,
+          { transform: [`translateY(-${relative_y}px)`, "translateY(0)"] },
+          {
+            duration: (0.5 * duration_f) / 2,
+            at: `+${(0.3 * duration_f) / 2}`,
+          },
+        ],
+        // Animate the remainder of the line
+        [
+          black_clip_rect,
+          {
+            width: xScale(person.life_expectancy - person.age_at_death) + "px",
+          },
+          {
+            at: "<",
+            duration: 1 * duration_f * (1 - life_percent),
+          },
+        ]
+      );
+    }
+
+    timeline(sequence, { delay: 0.5 });
+  });
 </script>
 
 <main class={state.theme === "light" ? "light" : "dark"}>
   <svg width="100%" height="100%">
-    {#each data_with_paths as person, i (i)}
-      <g>
-        <clipPath id="orange-{person.id}">
-          <rect
-            x={0}
-            y="0"
-            height={base_line_y}
-            width={xScale(person.age_at_death)}
-          />
+    {#each completed_data as person, i (i)}
+      <g class="life">
+        <clipPath class="orange-clip" id="orange-{person.id}">
+          <rect x={0} y="0" height={base_line_y} width={0} />
         </clipPath>
-        <clipPath id="black-{person.id}">
+        <clipPath class="black-clip" id="black-{person.id}">
           <rect
             x={xScale(person.age_at_death)}
             y="0"
             height={base_line_y}
-            width={800}
+            width={0}
           />
         </clipPath>
+
         <path
           d={makeLivedLine(person, i)}
           stroke="rgb(185,185,185)"
-          stroke-width="0.5"
+          stroke-width="1"
           fill="none"
           clip-path="url(#black-{person.id})"
-          transition:draw={{
-            duration: getDuration(i),
-            delay: getWhiteLineDelay(person, i),
-            easing: easingFns.linear,
-          }}
+          opacity="0.6"
         />
         <path
           d={makeLivedLine(person, i)}
           stroke={oranges[(i + 1) % 5]}
-          stroke-width="1"
+          stroke-width="1.5"
           clip-path="url(#orange-{person.id})"
           fill="none"
-          transition:draw={{
-            duration: getDuration(i),
-            delay: getDelay(i),
-            easing: easingFns.linear,
-          }}
+          opacity="0.6"
         />
+
         <circle
           r="2"
           cx={xScale(person.age_at_death)}
@@ -169,13 +149,12 @@
           fill={oranges[(i + 1) % 5]}
           style="opacity: 0"
         />
-        <!-- bind:this={circles[i]} -->
       </g>
     {/each}
     <line
       x1="100"
       y1={base_line_y}
-      x2="600"
+      x2="800"
       y2={base_line_y}
       stroke="white"
       stroke-width="0.5"
