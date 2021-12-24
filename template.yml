@@ -22,6 +22,19 @@ settings:
       - [ Light, light ]
       - [ Dark, dark ]
 
-data: []
+data:
+  - dataset: data
+    key: id
+    name: Id
+    type: column
+    description: A column of names or times
+    column: 'data::B'
+  - dataset: data
+    key: age_at_death
+    name: Age at death
+    type: column
+    description: A column of names or times
+    column: 'data::G'
+
   # The data section determines how data is made available to your template,
   # and the sample data that is used. See the documentation.
