@@ -34,7 +34,6 @@
     return lineGenerator([start_coords, [mid_x, mid_y], [end_x, base_line_y]]);
   }
 
-
   const duration = 2000;
   const delay = 400;
   const animateIn = (node, { path, person, x, y, i }) => {
@@ -56,6 +55,10 @@
   <svg width="100%" height="100%">
     <g>
       {#each dummy_data as person, i (i)}
+        <clipPath id="orange-{person.name}">
+          <rect x={0} y=0 height={base_line_y} width={xScale(person.age_at_death)}>
+          </rect>
+        </clipPath>
         <path
           d={makeLivedLine(person)}
           stroke="black"
@@ -68,6 +71,19 @@
           }}
           bind:this={person.path}
         />
+        <path
+          d={makeLivedLine(person)}
+          stroke="orange"
+          stroke-width="1"
+          clip-path="url(#orange-{person.name})"
+          fill="none"
+          transition:draw={{
+            duration,
+            delay: i * delay,
+            easing: easingFns.linear,
+          }}
+          bind:this={person.path}
+      />
         <circle
           r="2"
           cx={xScale(person.age_at_death)}
