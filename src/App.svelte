@@ -47,6 +47,7 @@
 
   // Animate lines
   const duration_overides = { 0: 4, 1: 2.5, 2: 2, 3: 2, 4: 2 };
+  let animation = undefined;
 
   onMount(() => {
     let lives = document.querySelectorAll(".life");
@@ -105,11 +106,16 @@
       );
     }
 
-    timeline(sequence, { delay: 0.5 });
+    animation = timeline(sequence, { delay: 0.5 });
   });
 </script>
 
 <main class={state.theme === "light" ? "light" : "dark"}>
+  <button on:click={animation.pause()}>Pause</button>
+  <button on:click={() => { animation.playbackRate = 1; animation.play()} }>Play</button>
+  <button on:click={() => animation.playbackRate = -10}>Rewind</button>
+  <button on:click={() => { animation.playbackRate = 1; animation.cancel()} }>Reset</button>
+
   <svg width="100%" height="100%">
     {#each completed_data as person, i (i)}
       <g class="life">
